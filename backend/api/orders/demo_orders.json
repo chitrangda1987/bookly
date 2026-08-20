@@ -1,0 +1,22 @@
+[
+  {
+    "order_number": "BK-2026-DEMO01",
+    "customer": {"name": "Ada Lovelace", "email": "ada@example.com"},
+    "items": [{"id": 4, "quantity": 1}],
+    "status": "shipped",
+    "tracking_number": "1Z999AA10123456784",
+    "placed_hours_ago": 72,
+    "shipped_hours_ago": 24,
+    "estimated_delivery_days_from_now": 1
+  },
+  {
+    "order_number": "BK-2026-DEMO02",
+    "customer": {"name": "Alan Turing", "email": "alan@example.com"},
+    "items": [{"id": 2, "quantity": 2}, {"id": 5, "quantity": 1}],
+    "status": "processing",
+    "tracking_number": null,
+    "placed_hours_ago": 6,
+    "shipped_hours_ago": null,
+    "estimated_delivery_days_from_now": 5
+  }
+]
