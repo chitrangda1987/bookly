@@ -1,7 +1,9 @@
+from pydantic import ValidationError
 from flask import Blueprint, jsonify, request
 
 from api.books import BOOKS
 
+from .models import CheckoutRequest, OrderItem
 from .store import create_order, get_order, record_return_request
 
 bp = Blueprint("orders", __name__)
@@ -9,36 +11,25 @@ bp = Blueprint("orders", __name__)
 
 @bp.post("/api/cart/checkout")
 def checkout():
-    data = request.get_json(silent=True) or {}
-    customer = data.get("customer") or {}
-    items_in = data.get("items") or []
-    name = (customer.get("name") or "").strip()
-    email = (customer.get("email") or "").strip()
+    try:
+        payload = CheckoutRequest.model_validate(request.get_json(silent=True) or {})
+    except ValidationError as e:
+        return jsonify({"error": str(e.errors()[0].get("msg") or e)}), 400
 
-    if not name or not email:
-        return jsonify({"error": "customer name and email are required"}), 400
-    if not isinstance(items_in, list) or not items_in:
-        return jsonify({"error": "cart is empty"}), 400
-
-    books_by_id = {b["id"]: b for b in BOOKS}
-    order_items = []
+    books_by_id = {b.id: b for b in BOOKS}
+    order_items: list[OrderItem] = []
     total = 0.0
-    for entry in items_in:
-        book_id = entry.get("id")
-        qty = int(entry.get("quantity") or 1)
-        if book_id not in books_by_id or qty <= 0:
-            return jsonify({"error": f"invalid cart entry: {entry}"}), 400
-        book = books_by_id[book_id]
-        order_items.append({
-            "id": book_id,
-            "title": book["title"],
-            "price": book["price"],
-            "quantity": qty,
-        })
-        total += book["price"] * qty
+    for entry in payload.items:
+        book = books_by_id.get(entry.id)
+        if not book:
+            return jsonify({"error": f"unknown book id: {entry.id}"}), 400
+        order_items.append(OrderItem(
+            id=book.id, title=book.title, price=book.price, quantity=entry.quantity,
+        ))
+        total += book.price * entry.quantity
 
-    order = create_order({"name": name, "email": email}, order_items, total)
-    return jsonify(order), 201
+    order = create_order(payload.customer, order_items, total)
+    return jsonify(order.model_dump()), 201
 
 
 @bp.get("/api/orders/<order_number>")
@@ -46,7 +37,7 @@ def fetch_order(order_number: str):
     order = get_order(order_number)
     if not order:
         return jsonify({"error": "order not found"}), 404
-    return jsonify(order)
+    return jsonify(order.model_dump())
 
 
 @bp.post("/api/orders/<order_number>/return")
@@ -58,4 +49,4 @@ def request_return(order_number: str):
     order = record_return_request(order_number, reason)
     if not order:
         return jsonify({"error": "order not found"}), 404
-    return jsonify(order)
+    return jsonify(order.model_dump())

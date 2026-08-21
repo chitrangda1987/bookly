@@ -1,9 +1,11 @@
-import json
 import os
-from typing import Callable
+from functools import cache
 
-from anthropic import Anthropic
+from langchain.agents import create_agent
+from langchain_anthropic import ChatAnthropic
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
+from .models import ChatMessage
 from .tools import CHAT_TOOLS
 
 CHAT_MODEL = "claude-sonnet-4-6"
@@ -54,83 +56,38 @@ them to the Change Password page — passwords are never handled in chat.
 - If something is outside these policies (billing disputes, missing package claims older than 30 days, publisher inquiries), direct the customer to the Support page.
 """
 
+
 class ChatbotError(RuntimeError):
     """Raised when the chatbot cannot produce a reply."""
 
 
-ToolHandler = Callable[[dict], str]
-
-_client: Anthropic | None = None
-
-
-def _get_client() -> Anthropic:
-    global _client
-    if _client is None:
-        if not os.environ.get("ANTHROPIC_API_KEY"):
-            raise ChatbotError("ANTHROPIC_API_KEY is not set on the server.")
-        _client = Anthropic()
-    return _client
+@cache
+def _get_agent():
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise ChatbotError("ANTHROPIC_API_KEY is not set on the server.")
+    llm = ChatAnthropic(model=CHAT_MODEL, max_tokens=1024)
+    return create_agent(llm, tools=CHAT_TOOLS, system_prompt=CHAT_SYSTEM_PROMPT)
 
 
-def _block_to_dict(block) -> dict:
-    if hasattr(block, "model_dump"):
-        return block.model_dump()
-    return dict(block)
+def _to_langchain_message(msg: ChatMessage) -> BaseMessage:
+    if msg.role == "user":
+        return HumanMessage(content=msg.content)
+    return AIMessage(content=msg.content)
 
 
-def run_chat(
-    messages: list[dict],
-    tool_handlers: dict[str, ToolHandler],
-    max_iterations: int = 6,
-) -> str:
-    """Run the tool-use loop and return the assistant's final text reply.
+def run_chat(messages: list[ChatMessage]) -> str:
+    """Run the LangGraph tool-calling agent and return the final text reply."""
+    agent = _get_agent()
+    lc_messages = [_to_langchain_message(m) for m in messages]
+    result = agent.invoke({"messages": lc_messages})
 
-    `messages` is mutated in place with any assistant / tool-result turns.
-    """
-    client = _get_client()
-
-    for _ in range(max_iterations):
-        response = client.messages.create(
-            model=CHAT_MODEL,
-            max_tokens=1024,
-            system=[
-                {
-                    "type": "text",
-                    "text": CHAT_SYSTEM_PROMPT,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            tools=CHAT_TOOLS,
-            messages=messages,
-        )
-
-        if response.stop_reason != "tool_use":
-            break
-
-        messages.append({
-            "role": "assistant",
-            "content": [_block_to_dict(b) for b in response.content],
-        })
-
-        tool_results = []
-        for block in response.content:
-            if getattr(block, "type", None) != "tool_use":
-                continue
-            handler = tool_handlers.get(block.name)
-            if handler is None:
-                result = json.dumps({"error": f"unknown tool {block.name}"})
-            else:
-                result = handler(block.input or {})
-            tool_results.append({
-                "type": "tool_result",
-                "tool_use_id": block.id,
-                "content": result,
-            })
-        messages.append({"role": "user", "content": tool_results})
-    else:
-        raise ChatbotError("chat exceeded tool-use iterations")
-
-    return "".join(
-        block.text for block in response.content
-        if getattr(block, "type", None) == "text"
-    ).strip()
+    final = result["messages"][-1]
+    content = final.content
+    if isinstance(content, list):
+        # Anthropic-shaped content: list of {type, text} blocks
+        return "".join(
+            block.get("text", "") if isinstance(block, dict) else str(block)
+            for block in content
+            if not isinstance(block, dict) or block.get("type") == "text"
+        ).strip()
+    return (content or "").strip()

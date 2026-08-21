@@ -29,8 +29,8 @@ def register():
     )
     if err:
         return jsonify({"error": err}), 400
-    token = store.issue_token(user["email"])
-    return jsonify({"token": token, "user": user}), 201
+    token = store.issue_token(user.email)
+    return jsonify({"token": token, "user": user.model_dump()}), 201
 
 
 @bp.post("/api/auth/login")
@@ -41,8 +41,8 @@ def login():
     )
     if err:
         return jsonify({"error": err}), 401
-    token = store.issue_token(user["email"])
-    return jsonify({"token": token, "user": user})
+    token = store.issue_token(user.email)
+    return jsonify({"token": token, "user": user.model_dump()})
 
 
 @bp.post("/api/auth/logout")
@@ -58,7 +58,7 @@ def me():
     user, err = _require_user()
     if err:
         return err
-    return jsonify({"user": {"name": user["name"], "email": user["email"]}})
+    return jsonify({"user": user.public().model_dump()})
 
 
 @bp.post("/api/auth/change-password")
