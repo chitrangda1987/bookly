@@ -434,6 +434,37 @@ body {
   margin-bottom: 1rem;
 }
 
+/* -------- Auth tabs -------- */
+.auth-panel {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1.2rem;
+  border-bottom: 2px dashed rgba(74, 46, 26, 0.35);
+}
+
+.auth-tab {
+  background: transparent;
+  border: none;
+  padding: 0.6rem 1.1rem;
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--wood);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+}
+
+.auth-tab--active {
+  color: var(--wood-dark);
+  font-weight: 700;
+  border-bottom-color: var(--accent);
+}
+
 /* -------- Chatbot -------- */
 .chat-fab {
   position: fixed;

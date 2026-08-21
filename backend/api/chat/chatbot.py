@@ -4,6 +4,8 @@ from typing import Callable
 
 from anthropic import Anthropic
 
+from .tools import CHAT_TOOLS
+
 CHAT_MODEL = "claude-sonnet-4-6"
 
 CHAT_SYSTEM_PROMPT = """You are Bookly's friendly bookstore assistant. Bookly is a small, rustic online bookstore. Keep answers warm and concise (2-4 sentences unless the customer asks for detail). If a customer asks something unrelated to books or the store, politely steer back.
@@ -13,7 +15,8 @@ You can help with:
 - Sharing a plot summary or overview of a book (use the get_book_summary tool; summaries come from Wikipedia)
 - Order status (use the get_order_status tool when an order number is provided)
 - Filing return / refund requests (use the submit_return_request tool)
-- Explaining shipping, returns, and password-reset policies (see below)
+- Explaining how to change a password (see below — never do it yourself)
+- Explaining shipping and returns policies (see below)
 
 ## Shipping
 - Standard shipping is free on orders over $25; otherwise $3.99 flat rate.
@@ -30,11 +33,18 @@ You can help with:
 - Refunds are issued to the original payment method within 5-7 business days once we receive the return.
 - Return shipping is free for defective or wrong-item shipments; otherwise it's a flat $4 deducted from the refund.
 
-## Password reset
-- Customers can reset their password from the sign-in page by clicking "Forgot password?"
-- We'll email a reset link to their account email; the link is valid for 60 minutes.
-- If they don't receive the email within 5 minutes, ask them to check spam or re-send from the same page.
-- We never ask for the current password in chat, email, or over the phone.
+## Changing a password
+When a customer asks to change or reset their password, only explain the
+process — do NOT change the password yourself and do NOT ask the customer
+for their current or new password in chat.
+
+Tell them to open the **Change Password** page (linked from the Sign in
+page and the top-right menu when signed in), enter their account email and
+a new password of at least 6 characters, and submit. Their existing session
+will be signed out and they can sign back in with the new password.
+
+If the customer asks you to change it directly, politely refuse and point
+them to the Change Password page — passwords are never handled in chat.
 
 ## Rules
 - Never invent order details or book plot points. If a tool returns nothing, tell the customer honestly.
@@ -43,69 +53,6 @@ You can help with:
 - Never ask for full credit card or password details in chat.
 - If something is outside these policies (billing disputes, missing package claims older than 30 days, publisher inquiries), direct the customer to the Support page.
 """
-
-CHAT_TOOLS = [
-    {
-        "name": "get_order_status",
-        "description": (
-            "Look up an order by its order number. Returns order status, items, "
-            "tracking, and estimated delivery. Use this whenever a customer "
-            "asks about the state of a specific order."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "order_number": {
-                    "type": "string",
-                    "description": "The order number, e.g. BK-2026-DEMO01",
-                }
-            },
-            "required": ["order_number"],
-        },
-    },
-    {
-        "name": "get_book_summary",
-        "description": (
-            "Fetch a short plot summary / overview of a book from Wikipedia. "
-            "Use this whenever a customer asks what a book is about, wants a "
-            "synopsis, or asks for an overview. Returns the Wikipedia intro "
-            "extract, page URL, and a flag if the page is a disambiguation."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "title": {
-                    "type": "string",
-                    "description": "The book title to look up.",
-                },
-                "author": {
-                    "type": "string",
-                    "description": "Optional author name to disambiguate.",
-                },
-            },
-            "required": ["title"],
-        },
-    },
-    {
-        "name": "submit_return_request",
-        "description": (
-            "File a return / refund request for an existing order. Only call "
-            "after the customer has provided both the order number and a reason."
-        ),
-        "input_schema": {
-            "type": "object",
-            "properties": {
-                "order_number": {"type": "string"},
-                "reason": {
-                    "type": "string",
-                    "description": "The customer's stated reason for the return.",
-                },
-            },
-            "required": ["order_number", "reason"],
-        },
-    },
-]
-
 
 class ChatbotError(RuntimeError):
     """Raised when the chatbot cannot produce a reply."""

@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext.jsx'
 import { useCart } from '../context/CartContext.jsx'
 
 const NAV_ITEMS = [
@@ -10,6 +11,7 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const { count } = useCart()
+  const { user, isAuthenticated } = useAuth()
 
   return (
     <header className="navbar">
@@ -37,6 +39,14 @@ export default function Navbar() {
           }
         >
           🛒 Cart{count > 0 && <span className="cart-badge">{count}</span>}
+        </NavLink>
+        <NavLink
+          to={isAuthenticated ? '/account' : '/login'}
+          className={({ isActive }) =>
+            'nav-button' + (isActive ? ' nav-button--active' : '')
+          }
+        >
+          {isAuthenticated ? `👤 ${user.name.split(' ')[0]}` : 'Sign in'}
         </NavLink>
       </nav>
     </header>

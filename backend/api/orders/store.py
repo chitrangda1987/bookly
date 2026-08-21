@@ -4,7 +4,7 @@ import string
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-DEMO_ORDERS_FILE = Path(__file__).parent / "demo_orders.json"
+DEMO_ORDERS_FILE = Path(__file__).resolve().parents[2] / "data" / "demo_orders.json"
 
 ORDERS: dict[str, dict] = {}
 

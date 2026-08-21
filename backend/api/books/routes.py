@@ -3,7 +3,7 @@ from pathlib import Path
 
 from flask import Blueprint, jsonify, request
 
-BOOKS_FILE = Path(__file__).resolve().parents[2] / "books.json"
+BOOKS_FILE = Path(__file__).resolve().parents[2] / "data" / "books.json"
 with BOOKS_FILE.open() as f:
     BOOKS = json.load(f)
 

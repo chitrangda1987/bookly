@@ -4,6 +4,8 @@ from flask_cors import CORS
 
 load_dotenv()
 
+from api.auth import bp as auth_bp
+from api.auth import store as auth_store
 from api.books import BOOKS
 from api.books import bp as books_bp
 from api.chat import bp as chat_bp
@@ -20,11 +22,13 @@ def health():
     return jsonify({"status": "ok"})
 
 
+app.register_blueprint(auth_bp)
 app.register_blueprint(books_bp)
 app.register_blueprint(support_bp)
 app.register_blueprint(orders_bp)
 app.register_blueprint(chat_bp)
 
+auth_store.seed_demo_users()
 orders_store.seed_demo_orders(BOOKS)
 
 
